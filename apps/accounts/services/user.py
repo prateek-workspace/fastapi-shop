@@ -1,6 +1,11 @@
+# apps/accounts/services/user.py
+
 from fastapi import HTTPException
 from starlette import status
 
+from sqlalchemy.orm import Session
+
+from config.database import SessionLocal
 from apps.accounts.models import User
 from apps.accounts.services.password import PasswordManager
 from apps.core.date_time import DateTime
@@ -8,138 +13,210 @@ from apps.core.date_time import DateTime
 
 class UserManager:
 
+    # --------------------------------------------------------
+    # CREATE USER
+    # --------------------------------------------------------
     @classmethod
-    def create_user(cls, email: str, password: str, first_name: str | None = None, last_name: str | None = None,
-                    is_verified_email: bool = False, is_active: bool = False, is_superuser: bool = False,
-                    role: str = 'user', updated_at: DateTime = None, last_login: DateTime = None):
-        user_data = {
-            "email": email,
-            "password": PasswordManager.hash_password(password),
-            "first_name": first_name,
-            "last_name": last_name,
-            "is_verified_email": is_verified_email,
-            "is_active": is_active,
-            "is_superuser": is_superuser,
-            "role": role,
-            "updated_at": updated_at,
-            "last_login": last_login
-        }
-        user = User.create(**user_data)
-        return user
+    def create_user(
+        cls,
+        email: str,
+        password: str,
+        first_name: str | None = None,
+        last_name: str | None = None,
+        is_verified_email: bool = False,
+        is_active: bool = False,
+        is_superuser: bool = False,
+        role: str = "user",
+        updated_at: DateTime = None,
+        last_login: DateTime = None,
+    ) -> User:
 
+        db: Session = SessionLocal()
+
+        try:
+            user = User(
+                email=email,
+                password=PasswordManager.hash_password(password),
+                first_name=first_name,
+                last_name=last_name,
+                is_verified_email=is_verified_email,
+                is_active=is_active,
+                is_superuser=is_superuser,
+                role=role,
+                updated_at=updated_at,
+                last_login=last_login,
+            )
+
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+            return user
+
+        finally:
+            db.close()
+
+    # --------------------------------------------------------
+    # GET USER (BY ID OR EMAIL)
+    # --------------------------------------------------------
     @staticmethod
-    def get_user(user_id: int | None = None, email: str = None) -> User | None:
-        """
-        Retrieve a user based on their ID or email address.
+    def get_user(user_id: int | None = None, email: str | None = None) -> User | None:
+        db: Session = SessionLocal()
 
-        Args:
-            user_id (int | None): The ID of the user to retrieve. Defaults to None.
-            email (str | None): The email address of the user to retrieve. Defaults to None.
+        try:
+            query = db.query(User)
 
-        Returns:
-            User | None: A User object if a user is found based on the provided ID or email,
-                         or None if no user is found.
-        """
-        if user_id:
-            user = User.get(user_id)
-        elif email:
-            user = User.filter(User.email == email).first()
-        else:
+            if user_id:
+                return query.filter(User.id == user_id).first()
+
+            if email:
+                return query.filter(User.email == email).first()
+
             return None
 
-        if user is None:
-            return None
+        finally:
+            db.close()
 
-        return user
-
+    # --------------------------------------------------------
+    # GET USER OR RAISE 404
+    # --------------------------------------------------------
     @staticmethod
-    def get_user_or_404(user_id: int | None = None, email: str = None):
-        user: User | None = None
-        if user_id:
-            user = User.get_or_404(user_id)
-        elif email:
-            user = User.filter(User.email == email).first()
+    def get_user_or_404(user_id: int | None = None, email: str | None = None) -> User:
+        db: Session = SessionLocal()
+
+        try:
+            if user_id:
+                user = db.query(User).filter(User.id == user_id).first()
+            elif email:
+                user = db.query(User).filter(User.email == email).first()
+            else:
+                raise HTTPException(404, "User not found.")
+
             if not user:
-                raise HTTPException(status_code=404, detail="User not found.")
+                raise HTTPException(404, "User not found.")
 
-        return user
+            return user
 
+        finally:
+            db.close()
+
+    # --------------------------------------------------------
+    # UPDATE USER
+    # --------------------------------------------------------
     @classmethod
-    def update_user(cls, user_id: int, email: str | None = None, password: str | None = None,
-                    first_name: str | None = None, last_name: str | None = None, is_verified_email: bool | None = None,
-                    is_active: bool | None = None, is_superuser: bool | None = None, role: str | None = None,
-                    last_login: DateTime | None = None):
-        """
-        Update a user by their ID.
-        """
+    def update_user(
+        cls,
+        user_id: int,
+        email: str | None = None,
+        password: str | None = None,
+        first_name: str | None = None,
+        last_name: str | None = None,
+        is_verified_email: bool | None = None,
+        is_active: bool | None = None,
+        is_superuser: bool | None = None,
+        role: str | None = None,
+        last_login: DateTime | None = None,
+    ) -> User:
 
-        user_data = {}
+        db: Session = SessionLocal()
 
-        if first_name is not None:
-            user_data["first_name"] = first_name
+        try:
+            user = db.query(User).filter(User.id == user_id).first()
+            if not user:
+                raise HTTPException(404, "User not found.")
 
-        if last_name is not None:
-            user_data["last_name"] = last_name
+            if first_name is not None:
+                user.first_name = first_name
+            if last_name is not None:
+                user.last_name = last_name
+            if email is not None:
+                user.email = email
+            if password is not None:
+                user.password = PasswordManager.hash_password(password)
+            if is_verified_email is not None:
+                user.is_verified_email = is_verified_email
+            if is_active is not None:
+                user.is_active = is_active
+            if is_superuser is not None:
+                user.is_superuser = is_superuser
+            if role is not None:
+                user.role = role
+            if last_login is not None:
+                user.last_login = last_login
 
-        if email is not None:
-            user_data["email"] = email
+            user.updated_at = DateTime.now()
 
-        if password is not None:
-            user_data["password"] = PasswordManager.hash_password(password)
+            db.commit()
+            db.refresh(user)
+            return user
 
-        if is_verified_email is not None:
-            user_data["is_verified_email"] = is_verified_email
+        finally:
+            db.close()
 
-        if is_active is not None:
-            user_data["is_active"] = is_active
-
-        if is_superuser is not None:
-            user_data["is_superuser"] = is_superuser
-
-        if role is not None:
-            user_data["role"] = role
-
-        if last_login is not None:
-            user_data["last_login"] = last_login
-
-        return User.update(user_id, **user_data)
-
+    # --------------------------------------------------------
+    # UPDATE LAST LOGIN
+    # --------------------------------------------------------
     @classmethod
     def update_last_login(cls, user_id: int):
-        """
-        Update user's last login.
-        """
-        User.update(user_id, last_login=DateTime.now())
+        db: Session = SessionLocal()
 
+        try:
+            user = db.query(User).filter(User.id == user_id).first()
+            if not user:
+                return
+
+            user.last_login = DateTime.now()
+
+            db.commit()
+
+        finally:
+            db.close()
+
+    # --------------------------------------------------------
+    # CONVERT USER TO DICT
+    # --------------------------------------------------------
     @staticmethod
     def to_dict(user: User):
-        """
-        Convert a User object to a dictionary.
-        """
-        _dict = {
-            'user_id': user.id,
-            'email': user.email,
-            'first_name': user.first_name,
-            'last_name': user.last_name,
-            'is_verified_email': user.is_verified_email,
-            'date_joined': DateTime.string(user.date_joined),
-            'updated_at': DateTime.string(user.updated_at),
-            'last_login': DateTime.string(user.last_login)
+        return {
+            "user_id": user.id,
+            "email": user.email,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "is_verified_email": user.is_verified_email,
+            "date_joined": DateTime.string(user.date_joined),
+            "updated_at": DateTime.string(user.updated_at),
+            "last_login": DateTime.string(user.last_login),
         }
-        return _dict
 
+    # --------------------------------------------------------
+    # NEW USER DIRECT INSERT
+    # --------------------------------------------------------
     @classmethod
     def new_user(cls, **user_data):
-        return User.create(**user_data)
+        db: Session = SessionLocal()
 
+        try:
+            user = User(**user_data)
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+            return user
+        finally:
+            db.close()
+
+    # --------------------------------------------------------
+    # STATUS CHECKS
+    # --------------------------------------------------------
     @staticmethod
     def is_active(user: User):
         if not user.is_active:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Inactive user.")
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN, "Inactive user."
+            )
 
     @staticmethod
     def is_verified_email(user: User):
         if not user.is_verified_email:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
-                                detail="Pleas verify your email address to continue.")
-        # TODO guide user to follow the steps need to verify email address.
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                "Please verify your email address to continue.",
+            )

@@ -7,7 +7,7 @@ from apps.core.date_time import DateTime
 from apps.core.services.media import MediaService
 from apps.products.models import Product, ProductOption, ProductOptionItem, ProductVariant, ProductMedia
 from config import settings
-from config.database import DatabaseManager
+from config.database import get_db
 
 
 class ProductService:

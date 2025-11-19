@@ -4,14 +4,14 @@ from pathlib import Path
 
 from fastapi import UploadFile, status, HTTPException
 
-from config.database import DatabaseManager
+from config.database import get_db
 from config.settings import MEDIA_DIR, MAX_FILE_SIZE
 
 
 # TODO set permission to access media-directory and files
 class MediaService:
     def __init__(self, parent_directory: str = "media", sub_directory: str | int = None):
-        testing = DatabaseManager.get_testing_mode()
+        testing = get_db.get_testing_mode()
         if not testing:
             self.path = Path(f"{MEDIA_DIR}/{parent_directory}/{sub_directory}" if sub_directory else parent_directory)
         else:

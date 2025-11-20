@@ -9,6 +9,8 @@ env_path = BASE_DIR / ".env"
 if env_path.exists():
     load_dotenv(env_path)
 
+project_name=os.getenv("PROJECT_NAME"),
+
 class AppConfig:
     class _AppConfig(BaseModel):
         app_name: str | None = None
@@ -16,6 +18,10 @@ class AppConfig:
         access_token_expire_minutes: int | None = None
         otp_secret_key: str | None = None
         otp_expire_seconds: int | None = None
+            # --- Resend Email API ---
+        resend_api_key: str | None = None
+        resend_from_email: str | None = None
+        project_name: str | None = None
 
     config = _AppConfig(
         app_name=os.getenv("APP_NAME"),
@@ -23,7 +29,12 @@ class AppConfig:
         access_token_expire_minutes=int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES") or 30),
         otp_secret_key=os.getenv("OTP_SECRET_KEY"),
         otp_expire_seconds=int(os.getenv("OTP_EXPIRE_SECONDS") or 360),
+
+        # --- Resend fields loaded from .env ---
+        resend_api_key=os.getenv("RESEND_API_KEY"),
+        resend_from_email=os.getenv("RESEND_FROM_EMAIL"),
     )
+
 
     @classmethod
     def get_config(cls) -> _AppConfig:

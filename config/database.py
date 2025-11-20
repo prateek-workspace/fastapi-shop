@@ -137,3 +137,12 @@ class DatabaseManager:
     @staticmethod
     def drop_all():
         Base.metadata.drop_all(bind=engine)
+
+
+# Dependency for FastAPI routes
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

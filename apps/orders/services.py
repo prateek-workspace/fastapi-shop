@@ -1,5 +1,5 @@
 from decimal import Decimal
-
+from apps.payments.services.factory import get_payment_gateway
 from apps.orders.models import Order, OrderItem
 from apps.products.models import ProductVariant
 from config.database import SessionLocal
@@ -79,3 +79,15 @@ class OrderService:
             OrderService.retrieve_order(order.id)
             for order in orders
         ]
+
+    @staticmethod
+    def checkout(order):
+        gateway = get_payment_gateway()
+
+        payment = gateway.create_payment(order)
+
+        if payment["status"] == "success":
+            order.status = "paid"
+            order.save()
+
+        return payment

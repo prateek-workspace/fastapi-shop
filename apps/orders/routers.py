@@ -51,3 +51,9 @@ def list_my_orders(
         return JSONResponse(status_code=204, content=None)
 
     return {"orders": orders}
+
+@router.post("/{order_id}/checkout")
+def checkout_order(order_id: int):
+    order = Order.get_or_404(order_id)
+    return OrderService.checkout(order)
+

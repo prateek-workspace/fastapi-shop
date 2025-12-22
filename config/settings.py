@@ -91,5 +91,8 @@ MAX_FILE_SIZE = 5
 products_list_limit = 12
 
 
-RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID")
-RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET")
+PAYMENT_MODE: str = "mock"  
+# values: "mock" | "razorpay"
+
+RAZORPAY_KEY_ID: str | None = None
+RAZORPAY_KEY_SECRET: str | None = None
